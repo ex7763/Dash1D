@@ -28,6 +28,9 @@ async fn main() {
     let mut x = 256.0;
     let mut y = 128.0 - 12.0;
 
+    let mut score: u32 = 0;
+    let speed = 1.0;
+    let mut xv = speed;
     let mut xa = 0.0;
     let eps = 1e-9;
     let eps = 1e-5;
@@ -37,8 +40,14 @@ async fn main() {
 
     let mut boob_x = 400.0;
     let mut boob_r = 5.0;
+
+    let mut last_time = get_time();
+    let desired_frame_time: f64 = 1.0 / 60.0;  // 60 fps
+
     loop {
         clear_background(WHITE);
+
+        draw_text(format!("Score: {}", score).leak(), 0.0, 32.0, 32.0, BLACK);
 
         draw_line(
             0.0, 156.0,
@@ -56,7 +65,7 @@ async fn main() {
 
         draw_rectangle(x - 12.0, y, 24.0, 24.0, GREEN);
         draw_circle_lines(boob_x, 128.0, boob_r, 3.0, RED);
-        boob_r += 0.1;
+        boob_r += 0.3;
 
         if status == Status::Die {
             draw_text("You Die", 110.0, 100.0, 96.0, RED);
@@ -72,8 +81,14 @@ async fn main() {
                 match get_last_key_pressed() {
                     Some(key) => {
                         match key {
-                            KeyCode::Right => {xa += 4.0;},
-                            KeyCode::Left=> {xa -= 4.0;},
+                            KeyCode::Space=> {
+                                if xv == speed {
+                                    xv += 5.0;
+                                }
+                                if xv == -speed {
+                                    xv -= 5.0;
+                                }
+                            },
                             _ => {}
                         }
                         println!("{:?}", key);
@@ -84,29 +99,52 @@ async fn main() {
         }
 
         if status != Status::Die {
-            if is_close!(xa, 0.0, rel_tol=eps) {
+            if is_close!(xv, speed, rel_tol=eps) {
                 status = Status::Idle;
-                xa = 0.0;
+                xv = speed;
+            }
+            else if is_close!(xv, -speed, rel_tol=eps) {
+                status = Status::Idle;
+                xv = -speed;
             }
             else {
-                if xa > 0.1 {
-                    xa -= 0.1;
+                if xv > speed {
+                    xv = f32::max(speed, xv - 0.3);
                 }
-                else if xa < -0.1 {
-                    xa += 0.1;
-                }
-                else {
-                    xa = 0.0;
+                else if xv < -speed {
+                    xv = f32::min(-speed, xv + 0.3);
                 }
                 status = Status::Dash;
             }
         }
 
-        x += xa;
+        x += xv;
         x = f32::max(f32::min(x, 512.0), 0.0);
-        // println!("{x}, {xa}");
 
+        if x == 512.0 {
+            xv = -speed;
+        }
+        if x == 0.0 {
+            xv = speed;
+        }
+        // println!("{x}, {xv}");
 
+        score += 1;
+
+        let time_passed = get_time() - last_time;
+        // println!("{time_passed}");
+        // if time_passed > desired_frame_time {
+        //     println!("{time_passed}");
+        //     last_time = get_time();
+        //
+        //     let time_to_sleep = (minimum_frame_time - frame_time) * 1000.;
+        //     println!("Sleep for {}ms", time_to_sleep);
+        //     std::thread::sleep(std::time::Duration::from_millis(time_to_sleep as u64));
+        //
+        //     next_frame().await;
+        // }
+
+        last_time = get_time();
         next_frame().await;
     }
 }
